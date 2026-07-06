@@ -211,7 +211,7 @@ elif st.session_state.state == "play":
 # --- PAGE 3: THE ROAST & SCOREBOARD ---
 elif st.session_state.state == "over":
     st.title("🚨 TEST COMPLETE")
-    st.write("*stares awkwardly in binary code*... calculated metrics below:")
+    st.write("*congratulations u finished it thx i appreciate ur participation metrics r below:")
     
     score = st.session_state.points
     name = st.session_state.player_name
@@ -229,23 +229,56 @@ elif st.session_state.state == "over":
     st.markdown('</div>', unsafe_allow_html=True)
     
     st.write("### 🏆 SCOREBOARD")
-    history = load_scores()
-    if history:
-        sorted_history = sorted(history, key=lambda x: (-x["score"], x["avg_speed_seconds"]))
+
+# 1. Add a hidden password input at the top of the scoreboard section
+# We use an expander so it stays out of the way of regular users
+admin_mode = False
+with st.expander("🔑 Admin Access"):
+    admin_password = st.text_input("Enter Admin Password", type="password")
+    if admin_password == "your_secret_password_here": # <-- Change this to your password!
+        admin_mode = True
+        st.success("Admin Mode Active!")
+
+history = load_scores()
+
+if history:
+    sorted_history = sorted(history, key=lambda x: (-x["score"], x["avg_speed_seconds"]))
+    
+    # --- TABLE HEADER ---
+    # Only create 5 columns if you are in admin mode. Otherwise, create 4.
+    if admin_mode:
+        h_col1, h_col2, h_col3, h_col4, h_col5 = st.columns([0.15, 0.4, 0.2, 0.15, 0.1])
+    else:
+        h_col1, h_col2, h_col3, h_col4 = st.columns([0.15, 0.4, 0.2, 0.25])
         
-        table_html = "<table style='width:100%; border:3px solid #111; border-collapse:collapse; background:#fff; color:#111; font-family:monospace;'>"
-        table_html += "<tr style='background:#111; color:#fff; text-align:center;'><th style='padding:10px; border:1px solid #111;'>RANK</th><th style='padding:10px; border:1px solid #111;'>NAME</th><th style='padding:10px; border:1px solid #111;'>SCORE</th><th style='padding:10px; border:1px solid #111;'>SPEED</th></tr>"
+    with h_col1: st.markdown("**RANK**")
+    with h_col2: st.markdown("**NAME**")
+    with h_col3: st.markdown("**SCORE**")
+    with h_col4: st.markdown("**SPEED**")
+    st.divider()
+
+    # --- TABLE ROWS ---
+    for rank, entry in enumerate(sorted_history[:10], 1):
+        if admin_mode:
+            col1, col2, col3, col4, col5 = st.columns([0.15, 0.4, 0.2, 0.15, 0.1])
+        else:
+            col1, col2, col3, col4 = st.columns([0.15, 0.4, 0.2, 0.25])
         
-        for rank, entry in enumerate(sorted_history[:10], 1):
-            table_html += "<tr style='text-align:center; background:#fff; color:#111;'>"
-            table_html += f"<td style='padding:10px; border:1px solid #111; font-weight:bold;'>#{rank}</td>"
-            table_html += f"<td style='padding:10px; border:1px solid #111;'>{entry['name']}</td>"
-            table_html += f"<td style='padding:10px; border:1px solid #111; font-weight:bold;'>{entry['score']}/10</td>"
-            table_html += f"<td style='padding:10px; border:1px solid #111;'>{entry['avg_speed_seconds']}s</td>"
-            table_html += "</tr>"
+        with col1: st.write(f"#{rank}")
+        with col2: st.write(entry['name'])
+        with col3: st.write(f"**{entry['score']}/10**")
+        with col4: st.write(f"{entry['avg_speed_seconds']}s")
             
-        table_html += "</table><br>"
-        st.markdown(table_html, unsafe_allow_html=True)
+        # The magic protection step:
+        if admin_mode:
+            with col5:
+                if st.button("🗑️", key=f"del_user_{rank}_{entry['name']}"):
+                    history.remove(entry)
+                    if 'save_scores' in globals() or 'save_scores' in locals():
+                        save_scores(history)
+                    elif 'save_data' in globals():
+                        save_data(history)
+                    st.rerun(
 
 # --- 🔒 HIDDEN ADMIN PANEL ---
 st.markdown("<br><br><br>", unsafe_allow_html=True)
